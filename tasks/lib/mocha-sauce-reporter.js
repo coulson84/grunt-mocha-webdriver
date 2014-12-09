@@ -10,35 +10,46 @@ var total = 0;
   var tests = [];
   var stats;
 module.exports = function(browser) {
-  
-
+  var bTitle = browser.browserTitle;
+  browser.browserTitle = '';
   var SauceReporter = function(runner) {
     BaseReporter.call(this, runner);
-    var stats = stats || this.stats,
-      
-      self = this;
+    var self = this;
+    var these_stats = this.stats;
+    var these_numberTests = 0;
+    var these_passes = 0;
+    var these_failures = 0;
+    var these_failInfo = {};
+    var xmlResults = '';
+    var i;
 
-      total += 1;
+    stats = stats || this.stats,
+    total += 1;
 
     runner.on('pending', function(test) {
       tests.push(test);
     });
 
     runner.on('test end', function() {
+      theses_numberTests++;
       numberTests++;
     });
 
     runner.on('pass', function(test) {
+      these_passes++;
       passes++;
-      test.browser = browser.browserTitle;
+      test.browser = bTitle;
       tests.push(test);
     });
 
     runner.on('fail', function(test) {
       failures++;
-      test.browser = browser.browserTitle;
+      these_failures++;
+      test.browser = bTitle;
       failInfo[runner.suite.title] = failInfo[runner.suite.title] || [];
       failInfo[runner.suite.title].push(e.title + (e.err.message ? (': ' + e.err.message) : ''));
+      these_failInfo[runner.suite.title] = these_failInfo[runner.suite.title] || [];
+      these_failInfo[runner.suite.title].push(e.title + (e.err.message ? (': ' + e.err.message) : ''));
       tests.push(test);
     });
 
@@ -49,10 +60,28 @@ module.exports = function(browser) {
         browser.sauceJobStatus(failures === 0);
       }
 
+      console.log();
+      console.log('Tests complete for ' + bTitle);
+      console.log(color('bright pass', '%d %s'), numberTests, 'tests run.');
+      if (passes) {
+        console.log(color('green', '%d %s'), passes, 'tests passed.');
+      }
+      if (failures) {
+        console.log(color('fail', '%d %s'), failures, 'tests failed.');
+        for (var i in failInfo) {
+          console.log(color('fail', i + '\n\t' + failInfo[i].join('\n\t')));
+        }
+      }
+      if (browser.mode === 'saucelabs') {
+        console.log('Test video at: http://saucelabs.com/tests/' + browser.sessionID);
+      }
+      console.log();
+
+
       if(complete!==total) {
         return;
       }
-      console.log(tag('testsuite', {
+      xmlResults += tag('testsuite', {
         name: 'Mocha Tests',
         tests: stats.tests,
         failures: stats.failures,
@@ -60,11 +89,15 @@ module.exports = function(browser) {
         skipped: stats.tests - stats.failures - stats.passes,
         timestamp: (new Date).toUTCString(),
         time: (stats.duration / 1000) || 0,
-        browser: browser.browserTitle
-      }, false));
+        browser: bTitle
+      }, false);
 
-      tests.forEach(test);
-      console.log('</testsuite>');
+      tests.forEach(function(testResult) {
+        xmlResults += test(testResult)
+      });
+      xmlResults += '</testsuite>';
+
+      
     });
   }
 
@@ -124,46 +157,7 @@ module.exports = function(browser) {
   // var SauceReporter = function(runner) {
   //   BaseReporter.call(this, runner);
 
-  //   var self = this;
-  //   var stats = this.stats;
-  //   var numberTests = 0;
-  //   var passes = 0;
-  //   var failures = 0;
-  //   var failInfo = {};
-  //   var i;
-
-  //   runner.on('test end', function() {
-  //     numberTests++;
-  //   });
-
-  //   runner.on('pass', function() {
-  //     passes++;
-  //   });
-  //   runner.on('fail', function(e) {
-  //     failures++;
-  //     failInfo[runner.suite.title] = failInfo[runner.suite.title] || [];
-  //     failInfo[runner.suite.title].push(e.title + (e.err.message ? (': ' + e.err.message) : ''));
-  //   });
-
-  //   runner.on('end', function() {
-  //     console.log();
-  //     console.log('Tests complete for ' + browser.browserTitle);
-  //     console.log(color('bright pass', '%d %s'), numberTests, 'tests run.');
-  //     if (passes) {
-  //       console.log(color('green', '%d %s'), passes, 'tests passed.');
-  //     }
-  //     if (failures) {
-  //       console.log(color('fail', '%d %s'), failures, 'tests failed.');
-  //       for (var i in failInfo) {
-  //         console.log(color('fail', i + '\n\t' + failInfo[i].join('\n\t')));
-  //       }
-  //     }
-  //     if (browser.mode === 'saucelabs') {
-  //       console.log('Test video at: http://saucelabs.com/tests/' + browser.sessionID);
-  //     }
-  //     console.log();
-  //   });
-  // };
+  
 
   SauceReporter.prototype.__proto__ = BaseReporter.prototype;
 
